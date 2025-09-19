@@ -174,7 +174,7 @@ def visualize_flow(root_dir, viz_root_dir, model, img_pairs, keep_size):
 
         image1, image2, viz_fn, filename = prepare_image(root_dir, viz_root_dir, fn1, fn2, keep_size)
         flow = compute_flow(model, image1, image2, weights)
-        flow_write_flo(flow, osp.join(viz_fn, f'flo_{filename}.flo'))
+        flow_write_flo(flow, osp.join(viz_root_dir, f'flo_{filename}.flo'))
         flow_img = flow_viz.flow_to_image(flow)
         cv2.imwrite(viz_fn, flow_img[:, :, [2,1,0]])
 
@@ -222,4 +222,4 @@ if __name__ == '__main__':
     elif args.eval_type == 'seq':
         img_pairs = generate_pairs(args.seq_dir, args.start_idx, args.end_idx)
     with torch.no_grad():
-        visualize_flow(root_dir, viz_root_dir, model, img_pairs, args.keep_size, )
+        visualize_flow(root_dir, viz_root_dir, model, img_pairs, args.keep_size)
