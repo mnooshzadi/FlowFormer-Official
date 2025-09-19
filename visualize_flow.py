@@ -1,6 +1,7 @@
 import sys
 sys.path.append('core')
 
+import struct
 from PIL import Image
 from glob import glob
 import argparse
@@ -25,6 +26,20 @@ from utils.utils import InputPadder, forward_interpolate
 import itertools
 
 TRAIN_SIZE = [432, 960]
+
+# Write .flo file
+# Code adapted from https://rb.gy/0pzbhb
+def flow_write_flo(flow, filepath):
+    with open(filepath, "wb") as f:
+        SENTINEL = 1666666800.0  # Only here to look like Middlebury original files
+        height, width, _ = flow.shape
+
+        image = flow.copy()
+        image[np.isnan(image)] = SENTINEL
+
+        f.write(b'PIEH')
+        f.write(struct.pack("II", width, height))
+        image.astype(np.float32).tofile(f)
 
 
 def compute_grid_indices(image_shape, patch_size=TRAIN_SIZE, min_overlap=20):
@@ -138,7 +153,7 @@ def prepare_image(root_dir, viz_root_dir, fn1, fn2, keep_size):
 
     viz_fn = osp.join(viz_dir, filename + '.png')
 
-    return image1, image2, viz_fn
+    return image1, image2, viz_fn, filename
 
 def build_model():
     print(f"building  model...")
@@ -157,8 +172,9 @@ def visualize_flow(root_dir, viz_root_dir, model, img_pairs, keep_size):
         fn1, fn2 = img_pair
         print(f"processing {fn1}, {fn2}...")
 
-        image1, image2, viz_fn = prepare_image(root_dir, viz_root_dir, fn1, fn2, keep_size)
+        image1, image2, viz_fn, filename = prepare_image(root_dir, viz_root_dir, fn1, fn2, keep_size)
         flow = compute_flow(model, image1, image2, weights)
+        flow_write_flo(flow, osp.join(viz_fn, f'flo_{filename}.flo'))
         flow_img = flow_viz.flow_to_image(flow)
         cv2.imwrite(viz_fn, flow_img[:, :, [2,1,0]])
 
@@ -206,4 +222,4 @@ if __name__ == '__main__':
     elif args.eval_type == 'seq':
         img_pairs = generate_pairs(args.seq_dir, args.start_idx, args.end_idx)
     with torch.no_grad():
-        visualize_flow(root_dir, viz_root_dir, model, img_pairs, args.keep_size)
+        visualize_flow(root_dir, viz_root_dir, model, img_pairs, args.keep_size, )
